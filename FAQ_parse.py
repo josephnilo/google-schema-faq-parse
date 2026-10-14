@@ -1,96 +1,48 @@
-"""
-Create a script that will take a URL, get the HTML from the URL, parse the HTML and generate
-FAQpage schema.org markup
-
-The questions are in <h3> tags that end in a "?", the answers are in the sibling <p> tags until the next <h3> tag.
-"""
+"""Generate FAQPage JSON-LD from h3 questions and following paragraphs."""
+import json
 
 import requests
 from bs4 import BeautifulSoup
-import json
-
-# Get the HTML from the URL
-print("Input URL:")
-url = input()
-r = requests.get(url)
-html = r.text
-
-# Parse the HTML
-soup = BeautifulSoup(html, "html.parser")
 
 
-# Get the questions and answers, turn them into plain text removing all formatting, turn punctuation in the answers into HTML entities
-
-questions = []
-answers = []
-for h3 in soup.find_all("h3"):
-    if h3.text.endswith("?"):
-        questions.append(h3.text)
-        answer = ""
-        for sibling in h3.next_siblings:
+def faq_schema(html):
+    soup = BeautifulSoup(html, "html.parser")
+    entities = []
+    for heading in soup.find_all("h3"):
+        question = heading.get_text().strip()
+        if not question.endswith("?"):
+            continue
+        paragraphs = []
+        for sibling in heading.next_siblings:
             if sibling.name == "h3":
                 break
             if sibling.name == "p":
-                answer += sibling.text
-        answers.append(answer)
+                paragraphs.append(sibling.get_text().strip())
+        entities.append({"@type": "Question", "name": question,
+                         "acceptedAnswer": {"@type": "Answer", "text": " ".join(paragraphs)}})
+    return {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": entities}
 
-# Turn the punctuation in the answers into HTML entities
-answers = [a.replace("?", "&quest;") for a in answers]
-answers = [a.replace("!", "&excl;") for a in answers]
-answers = [a.replace(".", "&period;") for a in answers]
-answers = [a.replace('"', "&quot;") for a in answers]
 
-# Create the FAQPage schema.org markup
-# Create the FAQPage schema.org markup
-faqpage = """<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-"""
-
-# Create the question and answer markup
-
-for i in range(len(questions)):
-    faqpage += """    {
-      "@type": "Question",
-      "name": "%s",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "%s"
-      }
-    },
-""" % (
-        questions[i],
-        answers[i],
-    )
-
-# Remove the last comma
-faqpage = faqpage[:-2]
-
-# Close the FAQPage schema.org markup
-faqpage += """  ]
-}
-</script>"""
-
-# validate the json
+def render_faq(html):
+    # Escaping '<' also prevents source text from terminating the script element.
+    payload = json.dumps(faq_schema(html), ensure_ascii=False, indent=2).replace("<", "\\u003c")
+    return '<script type="application/ld+json">\n' + payload + '\n</script>'
 
 
 def validateJSON(jsondata):
     try:
         json.loads(jsondata)
-    except ValueError as err:
+        return True
+    except (ValueError, TypeError):
         return False
-    return True
 
 
-validation = validateJSON(faqpage)
+def main():
+    url = input("Input URL:\n").strip()
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    print(render_faq(response.text))
 
-if validation == True:
-    print(faqpage)
-else:
-    print("The generated JSON is not valid")
 
-
-# # Print the FAQPage schema.org markup
-# print(faqpage)
+if __name__ == "__main__":
+    main()
