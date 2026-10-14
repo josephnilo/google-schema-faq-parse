@@ -12,7 +12,7 @@ class FAQTests(unittest.TestCase):
         result = faq.faq_schema('<h3>First?</h3><p>One <b>bold</b>.</p><p>Two.</p>'
                                 '<h3>Not a question</h3><p>Ignored.</p><h3>Second?</h3><p>Three.</p>')
         self.assertEqual(len(result['mainEntity']), 2)
-        self.assertEqual(result['mainEntity'][0]['acceptedAnswer']['text'], 'One bold . Two.')
+        self.assertEqual(result['mainEntity'][0]['acceptedAnswer']['text'], 'One bold. Two.')
         self.assertEqual(result['mainEntity'][1]['acceptedAnswer']['text'], 'Three.')
 
     def test_json_escaping_and_script_termination(self):

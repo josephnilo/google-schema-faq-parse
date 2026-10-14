@@ -9,7 +9,7 @@ def faq_schema(html):
     soup = BeautifulSoup(html, "html.parser")
     entities = []
     for heading in soup.find_all("h3"):
-        question = heading.get_text(" ", strip=True)
+        question = heading.get_text().strip()
         if not question.endswith("?"):
             continue
         paragraphs = []
@@ -17,7 +17,7 @@ def faq_schema(html):
             if sibling.name == "h3":
                 break
             if sibling.name == "p":
-                paragraphs.append(sibling.get_text(" ", strip=True))
+                paragraphs.append(sibling.get_text().strip())
         entities.append({"@type": "Question", "name": question,
                          "acceptedAnswer": {"@type": "Answer", "text": " ".join(paragraphs)}})
     return {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": entities}
